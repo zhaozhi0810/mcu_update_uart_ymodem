@@ -75,11 +75,15 @@
 #define PACKET_SIZE             (128)
 #define PACKET_1K_SIZE          (1024)
 
-#define FILE_NAME_LENGTH        (256)
+#define FILE_NAME_LENGTH        (64)   //文件名长度最多64字节，包括结束符
 #define FILE_SIZE_LENGTH        (16)
+#define FILE_MD5_LENGTH         (32)   //MD5长度32字节，不包括结束符，2023-04-12增加
 
 #define NAK_TIMEOUT             (0x100000)
 #define MAX_ERRORS              (5)
+
+extern char md5_readBuf[64];   //存放文件的md5
+
 
 /*
 *********************************************************************************************************
@@ -145,6 +149,12 @@ void Ymodem_PrepareIntialPacket(uint8_t *data, const uint8_t* fileName, uint32_t
 		data[i++] = file_ptr[j++];
 	}
 
+	data[i + PACKET_HEADER] = 0x00;
+
+	for (j =0, i = i + PACKET_HEADER + 1; (md5_readBuf[j] != '\0') && (j < FILE_MD5_LENGTH) ; )
+	{
+		data[i++] = md5_readBuf[j++];
+	}
 	/* 其余补0 */
 	for (j = i; j < PACKET_SIZE + PACKET_HEADER; j++)
 	{
@@ -341,6 +351,13 @@ uint8_t Ymodem_Transmit (uint8_t *buf, const uint8_t* sendFileName, uint32_t siz
 				/* 接收到应答 */
 				//printf("ackReceived = 1 \n");
 				ackReceived = 1;
+			}
+			else if ((receivedC[0] == CA)&&(receivedC[1] == CA))  //中止信号
+			{ 
+				/* 接收到应答 */
+				//printf("ackReceived = 1 \n");
+				errors =  0x0A;
+				break;
 			}
 		}
 		/* 没有等到 */

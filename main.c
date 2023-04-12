@@ -1,14 +1,14 @@
 /*
 *********************************************************************************************************
 *
-*	Ä£¿éÃû³Æ : Ö÷º¯Êı
-*	ÎÄ¼şÃû³Æ : main.c
-*	°æ    ±¾ : V1.0
-*	Ëµ    Ã÷ : Ö÷¹¦ÄÜ
+*	Ã„Â£Â¿Ã©ÃƒÃ»Â³Ã† : Ã–Ã·ÂºÂ¯ÃŠÃ½
+*	ÃÃ„Â¼Ã¾ÃƒÃ»Â³Ã† : main.c
+*	Â°Ã¦    Â±Â¾ : V1.0
+*	Ã‹Âµ    ÃƒÃ· : Ã–Ã·Â¹Â¦Ã„Ãœ
 *
-*	ĞŞ¸Ä¼ÇÂ¼ 
-*		°æ±¾ºÅ    ÈÕÆÚ         ×÷Õß      ËµÃ÷
-*		V1.0    2023-04-06     dazhi    Ê×·¢
+*	ÃÃÂ¸Ã„Â¼Ã‡Ã‚Â¼ 
+*		Â°Ã¦Â±Â¾ÂºÃ…    ÃˆÃ•Ã†Ãš         Ã—Ã·Ã•ÃŸ      Ã‹ÂµÃƒÃ·
+*		V1.0    2023-04-06     dazhi    ÃŠÃ—Â·Â¢
 *
 *	Copyright (C), 2022-2030, htjc by dazhi
 *
@@ -23,14 +23,39 @@
 #include "xyzmodem.h"
 #include <stdarg.h>
 #include <unistd.h>
- /* Ô´ÎÄ¼şÂ·¾¶ */
+#include <string.h>
+ /* Ã”Â´ÃÃ„Â¼Ã¾Ã‚Â·Â¾Â¶ */
 //char SourceFile[] = "./app.bin";    
 static const char* my_opt = "f:";
+char md5_readBuf[64] = {0};
+
 
 void send_update_cmd_tomcu(void)
 {
-	uint8_t buf[] = {0xa5,74,0,0xef};   //Éı¼¶ÃüÁî
-	UART_SendPacket(buf, 4);   //4¸ö×Ö½Ú·¢³öÈ¥
+	uint8_t buf[] = {0xa5,74,0,0xef};   //Ã‰Ã½Â¼Â¶ÃƒÃ¼ÃÃ®
+	UART_SendPacket(buf, 4);   //4Â¸Ã¶Ã—Ã–Â½ÃšÂ·Â¢Â³Ã¶ÃˆÂ¥
+}
+
+
+int get_file_md5sum(char * filename)
+{
+	FILE * filep;
+	char cmd[128] = {"md5sum "};
+	
+	int ret;
+
+	strcat(cmd,filename);
+
+	filep = popen(cmd,"r");
+	if(!filep)
+		return -1;
+    ret = fread(md5_readBuf,32,1,filep);
+ 
+    printf("get_file_md5sum = %s ,ret= %d\n",md5_readBuf,ret);
+
+    pclose(filep);
+
+    return ret;
 }
 
 
@@ -68,18 +93,25 @@ int main(int argc,char* argv[])
 	                break;
 	                //return 0;
 	        }
-	        if(get_name)  //Ìø³ö´óÑ­»·
+	        if(get_name)  //ÃŒÃ¸Â³Ã¶Â´Ã³Ã‘Â­Â»Â·
 	        	break;
 	    }
 	}
+
+	ret = get_file_md5sum(filename);
+	if(ret)
+	{
+		printf("buf = %s,strlen = %lu\n",md5_readBuf,strlen(md5_readBuf));
+	}
+
 	uart_init(argc, argv);
 
 	system("/root/drv722api_disable_wtd");
-	system("killall drv722_22134_server");   //É±µô½ø³Ì
+	system("killall drv722_22134_server");   //æ€æ‰è¿›ç¨‹
 
 	
 	do{
-		ret = UART_ReceiveByte (data, 1);  //ºóÃæ¿ÉÄÜÓĞ1¸ö×Ö·û(²»Ò»¶¨)£¬¶ÁÒ»´ÎÊÔÊÔ£¬Ö»µÈ´ı2ms
+		ret = UART_ReceiveByte (data, 1);  //è¯»å–ç¼“å­˜çš„å­—ç¬¦
 	}while(ret==0);
 	
 	if(data[0] != 0x43)
@@ -88,7 +120,7 @@ int main(int argc,char* argv[])
 	//sleep(1);
 
     if(0 == xymodem_send(filename))
-    	printf("%s is over!\n",argv[0]);
+    	printf("%s is done!\n",argv[0]);
 
     uart_exit() ;
 
